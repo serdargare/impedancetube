@@ -9,3 +9,5 @@ dist/
 impedancetube.egg-info/
 
 .eggs/
+
+Tornado_Messungen/*
