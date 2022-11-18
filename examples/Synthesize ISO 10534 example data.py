@@ -5,7 +5,7 @@ import h5py
 
 #TODO: add position 3 for a new 
 
-fs = 44100
+fs = 51200
 c = 20.047 * np.sqrt(273.15 + 20) # speed of sound at 20 °C
 
 #input signal
@@ -73,7 +73,7 @@ time_data = time_data.astype('float32')
 # time_data = pf.Signal(data=data, sampling_rate=fs, domain='time')
 
 # Write to file
-hf = h5py.File('../Resources/example_ISO10534-2.h5','w')
+hf = h5py.File('./Resources/example_synth.h5','w')
 hf.create_dataset('time_data',data=time_data)
 hf['time_data'].attrs['sample_freq'] = fs
 hf.close()
