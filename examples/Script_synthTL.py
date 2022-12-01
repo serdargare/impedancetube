@@ -28,10 +28,38 @@ except:
 
 
 soundfilepath = './Resources'
-plotname = 'TL_Synth_example'
+calibrate = True
+
+plotlim = [-25,25]
+
+signal = 'noise'
+
+if signal == 'dirac':
+    filename = 'TL_Synth_noisyDirac_tr05.h5'
+    transmission = 'Transmission = 0.5'
+    amp = 'Dirac Amp = 1'
+
+if signal == 'sine':
+    filename = 'TL_Synth_noisySine_tr00.h5'
+    transmission = 'Transmission = 0.0'
+    amp = 'Sine Amp = 1'
+
+if signal == 'sweep':
+    filename ='TL_Synth_Sweep_tr01.h5'
+    transmission = 'Transmission = 0.1'
+    amp = 'Sweep Amp = 1'
+
+if signal == 'noise':
+    #filename = 'TL_Synth_wNoise_rms1_tr1.h5'
+    transmission = 'Transmission = 1.0'
+    amp = 'White Noise RMS = 1'
+
 
 # filename of empty measurement with direct configuration:
-filename_direct = 'example_TL_synth.h5'
+filename = 'TL_Synth_noisySine_tr05_noErr_set1.h5'
+transmission = 'Transmission = 0.5'
+plotname = filename[0:len(filename)-3]
+filename_direct = filename
 
 
 # reference channel
@@ -46,9 +74,9 @@ mic_channels_wide = [0, 2, 3, 5]
 
 # Filenames of the measurements (One file in each list for each measurement):
 # (in the same directory as the other sound files):
-filenames_measurement = [#'2022-10-13_14-10-33_930353.h5' # Leermessung
-                         'example_TL_synth.h5' # rechteckige Basotect mit d = 5 cm
+filenames_measurement = [filename # rechteckige Basotect mit d = 5 cm
                          ]
+
 
 # Parameters for frequency data handling:
 block_size = 4*2048
@@ -57,7 +85,7 @@ overlap = '50%'
 cached = False
 
 # Parameters for plot:
-savePlot = False
+savePlot = True
 plotpath = './Plots'
 
 ##############################################################################
@@ -79,6 +107,36 @@ freq_data = PowerSpectra(time_data=time_data,
 # initialize correction transferfunction with ones so the
 # ref-ref transfer function stays as ones, which is correct
 H_c = np.ones((freq_data.csm.shape[0:2]), dtype=complex)
+
+if calibrate:
+    #channels of switched mic and filenames of measurements with switched configurations
+    filenames_switched = {1: 'TL_Synth_noisySine_tr05_noErr2_set1.h5',  # <- here 2nd mic (index 1) was switched w/ ref (index 0)
+                        2: 'TL_Synth_noisySine_tr05_noErr2_set1.h5',
+                        3: 'TL_Synth_noisySine_tr05_noErr2_set1.h5',
+                        4: 'TL_Synth_noisySine_tr05_noErr2_set1.h5',
+                        5: 'TL_Synth_noisySine_tr05_noErr2_set1.h5'}
+
+    # iterate over all switched configurations:
+    for i in filenames_switched:
+        # get timedata of switched configuration:
+        time_data_switched = TimeSamples(
+            name=join(soundfilepath, filenames_switched[i]))
+
+        # get frequency data of switched configuration:
+        freq_data_switched = PowerSpectra(time_data=time_data_switched,
+                                        block_size=freq_data.block_size,
+                                        window=freq_data.window,
+                                        cached=freq_data.cached)
+
+        # calculate amplitude/phase correction for switched channel:
+        calib = imp.MicSwitchCalib_E2611(freq_data=freq_data,
+                                        freq_data_switched=freq_data_switched,
+                                        ref_channel=0,
+                                        test_channel=i)
+
+        # store result:
+        H_c[:, i] = calib.H_c
+
 
 # ---------------- Measurement  ----------------------------------------------
 # iterate over all measurements
@@ -143,17 +201,17 @@ for filename_measurement in filenames_measurement:
         # plot
         ax.plot(freqs[idx], transmission_loss[idx])
 
-    ax.set(title=plotname,
+    ax.set(title= amp + ' and ' + transmission,
            xlabel='f [Hz]',
            ylabel='Transmission loss [dB]',
-           ylim = [-50,100])
+           ylim = plotlim)
     ax.legend(['wide', 'narrow'])
     ax.grid()
 
+    plt.show()
+
     # Save or show plot:
-    if not savePlot:
-        plt.show()
-    else:
+    if savePlot:
         # create plot directory if necessary:
         if not isdir(plotpath):
             mkdir(plotpath)
